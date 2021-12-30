@@ -9,6 +9,7 @@ class MapObj:
         self.Player_count = 0
 
 
+# TODO: make sandalone exe file that is only one file
 # ANSI escape sequences on terminals that support them
 class App:
     def __init__(self):
@@ -20,7 +21,7 @@ class App:
         self.Colors = [(255, 214, 165), (253, 255, 182), (202, 255, 191), (160, 196, 255), (189, 178, 255)]
         self.PlayerKey = False
 
-    def init_data(self, file='map.txt'):
+    def init_data(self, file=r'map.txt\map.txt'):
         t = list()
         with open(file) as f_open:
             for line in f_open.readlines():
@@ -185,7 +186,7 @@ def map_one(app):
 def map_two(app):
     # level 2
     gate = True
-    app.Data = app.init_data("map2.txt")
+    app.Data = app.init_data(r"map2.txt\map2.txt")
     app.ExitIndex = 158
     app.MoveMade = 0
     app.PlayerKey = False
