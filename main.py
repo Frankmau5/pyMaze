@@ -11,7 +11,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.text import Text
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TOTAL_LEVELS = 10
 
@@ -46,6 +46,11 @@ class App:
         self.CurrentCPU = 0.0
         self.Level = 1
         self.TotalMovesRun = 0
+        self.RunStartTime = time.perf_counter()
+        self.LevelStats = []
+        self.FPSHistory = []
+        self.CPUHistory = []
+        self.PeakFPS = 0.0
         self.Split_num = 80
         self.PlayerIndex = None
         self.KeyIndex = None
@@ -258,8 +263,12 @@ class App:
         frame_dt = max(1e-6, end_time - self.last_frame_time)
         instant_fps = 1.0 / frame_dt
         self.CurrentFPS = 0.7 * self.CurrentFPS + 0.3 * instant_fps
+        if self.CurrentFPS > self.PeakFPS:
+            self.PeakFPS = self.CurrentFPS
+        self.FPSHistory.append(self.CurrentFPS)
         self.last_frame_time = end_time
         self.update_cpu_usage(end_time)
+        self.CPUHistory.append(self.CurrentCPU)
 
     def clear(self):
         if self.Live is None:
@@ -433,18 +442,23 @@ def parse_args(argv=None):
 
 
 def play_level(app, level):
+    if level == 1 and not app.LevelStats:
+        app.RunStartTime = time.perf_counter()
     app.Level = level
     app.Data = app.init_data(f"map{level}.txt")
     app.MoveMade = 0
     app.PlayerKey = False
-    app.last_frame_time = time.perf_counter()
+    level_start = time.perf_counter()
+    app.last_frame_time = level_start
     gate = True
     while gate:
         app.draw()
         if app.update_player():
             gate = False
         app.clear()
+    level_elapsed = max(0.0, time.perf_counter() - level_start)
     app.TotalMovesRun += app.MoveMade
+    app.LevelStats.append((level, app.MoveMade, level_elapsed))
     app.draw()
 
 
@@ -454,35 +468,6 @@ def map_one(app):
 
 def map_two(app):
     play_level(app, 2)
-
-
-def read_key_nonblocking(timeout=0.15):
-    if not sys.stdin.isatty():
-        sleep(timeout)
-        return None
-    try:
-        import select
-        import termios
-        import tty
-
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
-            tty.setraw(fd)
-            rlist, _, _ = select.select([sys.stdin], [], [], timeout)
-            if not rlist:
-                return None
-            ch = sys.stdin.read(1)
-            if ch == "\x1b":
-                rlist2, _, _ = select.select([sys.stdin], [], [], 0.02)
-                if rlist2:
-                    ch += sys.stdin.read(2)
-            return ch
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-    except Exception:
-        sleep(timeout)
-        return None
 
 
 def render_fireworks_burst(app, palette):
@@ -543,32 +528,43 @@ def render_fireworks_burst(app, palette):
         sleep(0.06)
 
 
-def final_animation(app):
-    """Display an animated victory screen at the end of Level 10 with interactive Restart / Exit buttons."""
-    banner_frames = [
-        "★  ✦  ★  CONGRATULATIONS! ALL 10 LEVELS COMPLETED!  ★  ✦  ★",
-        "✦  ★  ✦  CONGRATULATIONS! ALL 10 LEVELS COMPLETED!  ✦  ★  ✦",
-    ]
-    title_art = [
-        "  ____        __  __                 _  ___  ",
-        " |  _ \\ _   _|  \\/  | __ _ _______  / |/ _ \\ ",
-        " | |_) | | | | |\\/| |/ _` |_  / _ \\ | | | | |",
-        " |  __/| |_| | |  | | (_| |/ /  __/ | | |_| |",
-        " |_|    \\__, |_|  |_|\\__,_/___\\___| |_|\\___/ ",
-        "        |___/                                ",
-    ]
-    trophy_art = [
-        "       ___________       ",
-        "      '._==_==_=_.'      ",
-        "      .-\\:      /-.      ",
-        "     | (|:.  10 |) |     ",
-        "      '-|:.     |-'      ",
-        "        \\::.    /        ",
-        "         '::. .'         ",
-        "           ) (           ",
-        "         _.' '._         ",
-        "        `\"\"\"\"\"\"\"`        ",
-    ]
+def format_duration(seconds):
+    mins, secs = divmod(max(0.0, seconds), 60.0)
+    if int(mins) > 0:
+        return f"{int(mins)}m {secs:05.2f}s"
+    return f"{secs:.2f}s"
+
+
+def read_key_nonblocking(timeout=0.15):
+    if not sys.stdin.isatty():
+        sleep(timeout)
+        return None
+    try:
+        import select
+        import termios
+        import tty
+
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            rlist, _, _ = select.select([sys.stdin], [], [], timeout)
+            if not rlist:
+                return None
+            ch = sys.stdin.read(1)
+            if ch == "\x1b":
+                rlist2, _, _ = select.select([sys.stdin], [], [], 0.02)
+                if rlist2:
+                    ch += sys.stdin.read(2)
+            return ch
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+    except Exception:
+        sleep(timeout)
+        return None
+
+
+def build_end_screen_panel(app, total_elapsed, selected=0, tick=0):
     palette = [
         "rgb(255,214,165)",
         "rgb(253,255,182)",
@@ -576,74 +572,166 @@ def final_animation(app):
         "rgb(160,196,255)",
         "rgb(189,178,255)",
     ]
+    color = palette[tick % len(palette)]
+    alt_color = palette[(tick + 2) % len(palette)]
 
+    levels_done = len(app.LevelStats) or TOTAL_LEVELS
+    total_moves = app.TotalMovesRun
+    avg_moves = total_moves / max(1, levels_done)
+    moves_per_sec = total_moves / max(1e-6, total_elapsed)
+    avg_fps = (sum(app.FPSHistory) / len(app.FPSHistory)) if app.FPSHistory else app.CurrentFPS
+    avg_cpu = (sum(app.CPUHistory) / len(app.CPUHistory)) if app.CPUHistory else app.CurrentCPU
+
+    if app.LevelStats:
+        fastest = min(app.LevelStats, key=lambda x: x[2])
+        slowest = max(app.LevelStats, key=lambda x: x[2])
+        fastest_str = f"L{fastest[0]} ({fastest[1]} moves, {fastest[2]:.2f}s)"
+        slowest_str = f"L{slowest[0]} ({slowest[1]} moves, {slowest[2]:.2f}s)"
+    else:
+        fastest_str = "N/A"
+        slowest_str = "N/A"
+
+    content = Text(justify="center")
+    content.append("★  ALL 10 LEVELS COMPLETED — RUN STATISTICS  ★\n\n", style=f"bold {color}")
+
+    content.append(f"Total Time Taken : ", style="bold white")
+    content.append(f"{format_duration(total_elapsed)}", style="bold rgb(202,255,191)")
+    content.append("     |     ", style="dim white")
+    content.append(f"Levels Completed : ", style="bold white")
+    content.append(f"{levels_done}/{TOTAL_LEVELS}\n", style="bold rgb(202,255,191)")
+
+    content.append(f"Pathfinding Mode : ", style="bold white")
+    content.append(f"{app.Pathfinding.upper()}", style="bold rgb(253,255,182)")
+    content.append("     |     ", style="dim white")
+    content.append(f"Total Moves Made : ", style="bold white")
+    content.append(f"{total_moves:,}\n", style="bold rgb(253,255,182)")
+
+    content.append(f"Avg Moves / Level: ", style="bold white")
+    content.append(f"{avg_moves:.1f}", style="bold rgb(160,196,255)")
+    content.append("     |     ", style="dim white")
+    content.append(f"Average Speed    : ", style="bold white")
+    content.append(f"{moves_per_sec:.1f} moves/s\n", style="bold rgb(160,196,255)")
+
+    content.append(f"Fastest Level    : ", style="bold white")
+    content.append(f"{fastest_str}", style="bold rgb(202,255,191)")
+    content.append("   |   ", style="dim white")
+    content.append(f"Slowest Level : ", style="bold white")
+    content.append(f"{slowest_str}\n", style="bold rgb(255,214,165)")
+
+    content.append(f"Average / Peak FPS: ", style="bold white")
+    content.append(f"{avg_fps:.1f} / {app.PeakFPS:.1f} FPS", style="bold rgb(189,178,255)")
+    content.append("   |   ", style="dim white")
+    content.append(f"Avg / Live CPU: ", style="bold white")
+    content.append(f"{avg_cpu:.1f}% / {app.CurrentCPU:.1f}%\n\n", style="bold rgb(189,178,255)")
+
+    if app.LevelStats:
+        content.append("Per-Level Breakdown\n", style=f"bold underline {alt_color}")
+        row1 = "   ".join(f"L{lvl}:{mv}m ({tm:.1f}s)" for lvl, mv, tm in app.LevelStats[:5])
+        row2 = "   ".join(f"L{lvl}:{mv}m ({tm:.1f}s)" for lvl, mv, tm in app.LevelStats[5:10])
+        if row1:
+            content.append(row1 + "\n", style="cyan")
+        if row2:
+            content.append(row2 + "\n", style="cyan")
+        content.append("\n")
+
+    btn_restart_style = (
+        "bold black on rgb(202,255,191)" if selected == 0 else "bold rgb(202,255,191)"
+    )
+    btn_exit_style = (
+        "bold black on rgb(255,160,160)" if selected == 1 else "bold rgb(255,160,160)"
+    )
+
+    content.append("   [ ↻ Start Again (R) ]   ", style=btn_restart_style)
+    content.append("       ")
+    content.append("   [ ✕ Exit App (Q) ]   \n\n", style=btn_exit_style)
+    content.append(
+        "Use ← / → or Tab to select a button and press Enter (or press R to Start Again / Q to Exit)",
+        style="dim white",
+    )
+
+    return Panel(
+        Align.center(content, vertical="middle"),
+        border_style=color,
+        title="[bold yellow]★ pyMaze Run Summary ★[/bold yellow]",
+        subtitle=f"[bold white]v{__version__}[/bold white]",
+    )
+
+
+def show_end_screen(app, total_elapsed):
+    """Display the post-animation summary screen with Start Again and Exit App buttons."""
     if not sys.stdin.isatty():
         return False
 
-    render_fireworks_burst(app, palette)
+    import select
+    import termios
+    import tty
 
-    selected = 0  # 0 = Start Again, 1 = Exit
-    tick = 0
+    selected = 0  # 0 = Start Again, 1 = Exit App
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd)
+        need_redraw = True
+        last_size = app.Console.size
 
-    while True:
-        app.update_cpu_usage(time.perf_counter())
-        color = palette[tick % len(palette)]
-        alt_color = palette[(tick + 2) % len(palette)]
-        header = banner_frames[tick % len(banner_frames)]
+        while True:
+            if app.Console.size != last_size:
+                last_size = app.Console.size
+                need_redraw = True
 
-        content = Text(justify="center")
-        content.append(header + "\n", style=f"bold {color}")
-        for idx, line in enumerate(title_art):
-            content.append(line + "\n", style=f"bold {palette[(tick + idx) % len(palette)]}")
-        content.append("\n")
-        for line in trophy_art:
-            content.append(line + "\n", style=f"bold {alt_color}")
-        content.append(
-            f"\nAlgorithm: {app.Pathfinding.upper()}   |   Total Moves: {app.TotalMovesRun}   |   FPS: {app.CurrentFPS:.1f}   |   CPU: {app.CurrentCPU:.1f}%\n\n",
-            style="bold cyan",
-        )
+            if need_redraw:
+                panel = build_end_screen_panel(app, total_elapsed, selected=selected, tick=0)
+                if app.Live is not None:
+                    app.Live.update(panel, refresh=True)
+                else:
+                    app.Console.clear()
+                    app.Console.print(panel)
+                need_redraw = False
 
-        btn_restart_style = "bold black on rgb(202,255,191)" if selected == 0 else "bold rgb(202,255,191)"
-        btn_exit_style = "bold black on rgb(255,160,160)" if selected == 1 else "bold rgb(255,160,160)"
+            rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
+            if not rlist:
+                continue
 
-        content.append("   [ ↻ Start Again (R) ]   ", style=btn_restart_style)
-        content.append("     ")
-        content.append("   [ ✕ Exit Program (Q) ]   \n\n", style=btn_exit_style)
-        content.append(
-            "Use ← / → or Tab to select a button and press Enter (or press R / Q)",
-            style="dim white",
-        )
+            ch = sys.stdin.read(1)
+            if ch == "\x1b":
+                rlist2, _, _ = select.select([sys.stdin], [], [], 0.02)
+                if rlist2:
+                    ch += sys.stdin.read(2)
 
-        panel = Panel(
-            Align.center(content, vertical="middle"),
-            border_style=color,
-            title="[bold yellow]★ pyMaze Victory ★[/bold yellow]",
-            subtitle=f"[bold white]v{__version__}[/bold white]",
-            height=max(24, app.Console.size.height - 2),
-        )
-
-        if app.Live is not None:
-            app.Live.update(panel, refresh=True)
-        else:
-            app.Console.clear()
-            app.Console.print(panel)
-
-        key = read_key_nonblocking(timeout=0.15)
-        tick += 1
-        if key is None:
-            continue
-        if key in ("\x03", "q", "Q", "\x1b"):
-            return False
-        if key in ("r", "R"):
-            app.TotalMovesRun = 0
-            return True
-        if key in ("\x1b[D", "\x1b[C", "\t", "h", "l", "a", "d"):
-            selected = 1 - selected
-        elif key in ("\r", "\n", " "):
-            if selected == 0:
-                app.TotalMovesRun = 0
+            if ch in ("\x03", "q", "Q", "\x1b"):
+                return False
+            if ch in ("r", "R"):
                 return True
-            return False
+            if ch in ("\x1b[D", "\x1b[C", "\t", "h", "l", "a", "d"):
+                selected = 1 - selected
+                need_redraw = True
+            elif ch in ("\r", "\n", " "):
+                return selected == 0
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+
+def final_animation(app):
+    """Play the grand finale fireworks animation at the end of Level 10, followed by the summary screen."""
+    palette = [
+        "rgb(255,214,165)",
+        "rgb(253,255,182)",
+        "rgb(202,255,191)",
+        "rgb(160,196,255)",
+        "rgb(189,178,255)",
+    ]
+    total_elapsed = max(0.0, time.perf_counter() - app.RunStartTime)
+    render_fireworks_burst(app, palette)
+    return show_end_screen(app, total_elapsed)
+
+
+def reset_run_stats(app):
+    app.TotalMovesRun = 0
+    app.LevelStats = []
+    app.FPSHistory = []
+    app.CPUHistory = []
+    app.PeakFPS = 0.0
+    app.RunStartTime = time.perf_counter()
 
 
 def main(argv=None):
@@ -652,7 +740,7 @@ def main(argv=None):
     fps = max(1.0, args.fps)
     app = App(pathfinding=mode, fps=fps)
     try:
-        with Live(console=app.Console, refresh_per_second=60, screen=True) as live:
+        with Live(console=app.Console, auto_refresh=False, screen=True) as live:
             app.Live = live
             level = 1
             while True:
@@ -660,10 +748,22 @@ def main(argv=None):
                 sleep(0.6)
                 if level == TOTAL_LEVELS:
                     if args.loop:
+                        render_fireworks_burst(
+                            app,
+                            [
+                                "rgb(255,214,165)",
+                                "rgb(253,255,182)",
+                                "rgb(202,255,191)",
+                                "rgb(160,196,255)",
+                                "rgb(189,178,255)",
+                            ],
+                        )
+                        reset_run_stats(app)
                         level = 1
                         continue
                     restart = final_animation(app)
                     if restart:
+                        reset_run_stats(app)
                         level = 1
                         continue
                     break

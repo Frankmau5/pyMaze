@@ -1,12 +1,20 @@
 # pyMaze
 
-**Version:** `1.4.0`
+**Version:** `1.5.0`
 
 ### Description
 
 **pyMaze** is an automated terminal-based maze solver rendered in truecolor using the [Rich](https://github.com/Textualize/rich) library. The player (`S`) autonomously explores 10 progressively harder ASCII mazes, locates the key (`K`), and navigates to the exit (`E`) while displaying live telemetry (including a real-time FPS counter, CPU usage percentage, and current level) centered at the bottom of the terminal.
 
-![pyMaze Screenshot](Image.PNG)
+---
+
+### Screenshots
+
+![pyMaze Screenshot 1](maze-1.png)
+![pyMaze Screenshot 2](maze-2.png)
+![pyMaze Screenshot 3](maze-3.png)
+![pyMaze Screenshot 4](maze-4.png)
+![pyMaze Screenshot 5](maze-5.png)
 
 ---
 
@@ -16,13 +24,13 @@
   - **Greedy Least-Visited (`default`)**: Explores neighboring corridors by selecting the least-visited adjacent tile (`Player_count`), gradually filling dead ends and backtracking until it finds the key and exit.
   - **A\* Shortest Path (`--astar` / `-a`)**: Uses A\* search (`heapq`) with a Manhattan distance heuristic to compute the optimal path from `S` $\rightarrow$ `K` and then `K` $\rightarrow$ `E`.
 - **10 Progressive Levels (`map1.txt` – `map10.txt`)**:
-  - Each level uses structured `|~~~|` / `|---|` architectural rooms and winding corridors with strictly increasing path complexity from Level 1 (`140` optimal moves) up to Level 10 (`554` optimal moves).
+  - Each level uses structured `|~~~|` / `|---|` architectural rooms and winding corridors with strictly increasing path complexity from Level 1 (`140` optimal moves) up to Level 10 (`542` optimal moves; `5,648` greedy moves).
 - **Live FPS & CPU Usage Telemetry (`--fps` / `-f`)**:
   - Displays smoothed real-time frames-per-second (`FPS`) and CPU usage percentage (`CPU: XX.X%`) in the telemetry bar and lets you customize the target frame rate (default `30` FPS).
 - **Continuous Loop Mode (`--loop` / `-l`)**:
   - Automatically wraps from Level 10 back to Level 1 for continuous demo playback.
-- **Grand Finale Fireworks & Interactive Victory Screen**:
-  - Completing Level 10 triggers a multi-burst particle fireworks animation followed by an animated 3D banner & trophy screen with full run telemetry and interactive **`[ ↻ Start Again (R) ]`** and **`[ ✕ Exit Program (Q) ]`** buttons (selectable with `←`/`→`/`Tab` + `Enter`, or hotkeys `R` / `Q`).
+- **Grand Finale Fireworks & Flicker-Free Run Summary Screen**:
+  - Completing Level 10 triggers a multi-burst truecolor particle fireworks animation followed by a flicker-free **Run Summary & Statistics Screen** displaying Total Time Taken, Levels Completed, Total Moves Made, Average Moves/Level, Average Speed (`moves/s`), Fastest & Slowest Levels, Average/Peak FPS, Average/Live CPU%, a per-level (`L1`–`L10`) breakdown, and interactive **`[ ↻ Start Again (R) ]`** and **`[ ✕ Exit App (Q) ]`** buttons.
 - **2D Visual Map Files**:
   - Maps (`map1.txt` … `map10.txt`) are stored as human-readable 25-row by 79-column 2D ASCII grids that can be viewed and edited directly in any text editor.
 - **Full-Terminal Responsive Scaling & `Rich.Live` Rendering**:
@@ -55,7 +63,7 @@
 | `-p` | `--pathfinding {greedy,astar}` | Explicitly select the pathfinding algorithm (`greedy` or `astar`) |
 | `-l` | `--loop` | Continuously loop through all 10 levels (`1 → 10 → 1 ...`) |
 | `-f` | `--fps <float>` | Set target frames-per-second for rendering (default: `30`) |
-| `-v` | `--version` | Print the program version (`pyMaze 1.4.0`) and exit |
+| `-v` | `--version` | Print the program version (`pyMaze 1.5.0`) and exit |
 | `-h` | `--help` | Show the help message and exit |
 
 ---
