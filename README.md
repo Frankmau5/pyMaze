@@ -1,6 +1,6 @@
 # pyMaze
 
-**Version:** `1.1.0`
+**Version:** `1.2.0`
 
 ### Description
 
@@ -55,7 +55,7 @@
 | `-p` | `--pathfinding {greedy,astar}` | Explicitly select the pathfinding algorithm (`greedy` or `astar`) |
 | `-l` | `--loop` | Continuously loop through all 10 levels (`1 → 10 → 1 ...`) |
 | `-f` | `--fps <float>` | Set target frames-per-second for rendering (default: `30`) |
-| `-v` | `--version` | Print the program version (`pyMaze 1.1.0`) and exit |
+| `-v` | `--version` | Print the program version (`pyMaze 1.2.0`) and exit |
 | `-h` | `--help` | Show the help message and exit |
 
 ---

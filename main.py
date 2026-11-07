@@ -10,7 +10,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.text import Text
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TOTAL_LEVELS = 10
 
