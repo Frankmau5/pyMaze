@@ -1,6 +1,6 @@
 # pyMaze
 
-**Version:** `1.2.0`
+**Version:** `1.3.0`
 
 ### Description
 
@@ -39,11 +39,11 @@
 | **3** | `map3.txt` | **172** *(87 + 85)* | **1,242** |
 | **4** | `map4.txt` | **204** *(128 + 76)* | **486** |
 | **5** | `map5.txt` | **236** *(96 + 140)* | **3,032** |
-| **6** | `map6.txt` | **248** *(94 + 154)* | **2,906** |
-| **7** | `map7.txt` | **378** *(202 + 176)* | **1,440** |
-| **8** | `map8.txt` | **390** *(252 + 138)* | **2,122** |
-| **9** | `map9.txt` | **402** *(346 + 56)* | **1,592** |
-| **10** | `map10.txt` | **554** *(476 + 78)* | **568** |
+| **6** | `map6.txt` | **406** *(240 + 166)* | **2,036** |
+| **7** | `map7.txt` | **430** *(232 + 198)* | **2,708** |
+| **8** | `map8.txt` | **446** *(272 + 174)* | **3,854** |
+| **9** | `map9.txt` | **532** *(454 + 78)* | **4,170** |
+| **10** | `map10.txt` | **542** *(462 + 80)* | **5,648** |
 
 ---
 
@@ -55,7 +55,7 @@
 | `-p` | `--pathfinding {greedy,astar}` | Explicitly select the pathfinding algorithm (`greedy` or `astar`) |
 | `-l` | `--loop` | Continuously loop through all 10 levels (`1 → 10 → 1 ...`) |
 | `-f` | `--fps <float>` | Set target frames-per-second for rendering (default: `30`) |
-| `-v` | `--version` | Print the program version (`pyMaze 1.2.0`) and exit |
+| `-v` | `--version` | Print the program version (`pyMaze 1.3.0`) and exit |
 | `-h` | `--help` | Show the help message and exit |
 
 ---
